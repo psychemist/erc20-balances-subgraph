@@ -1,0 +1,29 @@
+specVersion: 1.0.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: W3CXI
+    network: scroll-sepolia
+    source:
+      address: "0x5B40Ec67a61DB1231FD85F0158a5dD0fc64e6F54"
+      abi: W3CXI
+      startBlock: 6874799
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Approval
+        - Transfer
+      abis:
+        - name: W3CXI
+          file: ./abis/W3CXI.json
+      eventHandlers:
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleApproval
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+      file: ./src/w-3-cxi.ts
