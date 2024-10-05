@@ -1,6 +1,10 @@
-type ExampleEntity @entity {
-  id: Bytes!
-  count: BigInt!
-  owner: Bytes! # address
-  spender: Bytes! # address
+type User @entity {
+  id: ID!
+  balance: Balance!
+}
+
+type Balance @entity {
+  id: ID!
+  amount: BigInt!
+  user: User!
 }
