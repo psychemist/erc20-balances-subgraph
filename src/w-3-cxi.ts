@@ -1,55 +1,57 @@
-import { BigInt } from "@graphprotocol/graph-ts"
+import { BigInt, Bytes } from "@graphprotocol/graph-ts"
 import { W3CXI, Approval, Transfer } from "../generated/W3CXI/W3CXI"
-import { ExampleEntity } from "../generated/schema"
+import { User, Balance } from "../generated/schema"
+import { loadOrCreateUser } from "./utils"
 
 export function handleApproval(event: Approval): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from)
+  // Approval events don't affect user balances, so we don't need to do anything here
+  let ownerId = event.params.owner.toHexString()
+  let owner = loadOrCreateUser(ownerId)
+  owner.save()
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from)
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
-  }
-
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
-
-  // Entity fields can be set based on event parameters
-  entity.owner = event.params.owner
-  entity.spender = event.params.spender
-
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.allowance(...)
-  // - contract.approve(...)
-  // - contract.balanceOf(...)
-  // - contract.decimals(...)
-  // - contract.name(...)
-  // - contract.symbol(...)
-  // - contract.totalSupply(...)
-  // - contract.transfer(...)
-  // - contract.transferFrom(...)
+  let spenderId = event.params.spender.toHexString()
+  let spender = loadOrCreateUser(spenderId)
+  spender.save()
 }
 
-export function handleTransfer(event: Transfer): void {}
+export function handleTransfer(event: Transfer): void {
+  let fromAddress = event.params.from.toHexString()
+  let toAddress = event.params.to.toHexString()
+  let amount = event.params.value
+
+  // Handle 'from' user
+  let fromUser = User.load(fromAddress)
+  if (fromUser == null) {
+    fromUser = new User(fromAddress)
+    let fromBalance = new Balance(fromAddress)
+    fromBalance.amount = BigInt.fromI32(0)
+    fromBalance.user = fromUser.id
+    fromBalance.save()
+    fromUser.balance = fromBalance.id
+    fromUser.save()
+  }
+
+  let fromBalance = Balance.load(fromUser.balance)
+  if (fromBalance != null) {
+    fromBalance.amount = fromBalance.amount.minus(amount)
+    fromBalance.save()
+  }
+
+  // Handle 'to' user
+  let toUser = User.load(toAddress)
+  if (toUser == null) {
+    toUser = new User(toAddress)
+    let toBalance = new Balance(toAddress)
+    toBalance.amount = BigInt.fromI32(0)
+    toBalance.user = toUser.id
+    toBalance.save()
+    toUser.balance = toBalance.id
+    toUser.save()
+  }
+
+  let toBalance = Balance.load(toUser.balance)
+  if (toBalance != null) {
+    toBalance.amount = toBalance.amount.plus(amount)
+    toBalance.save()
+  }
+}
